@@ -1,0 +1,75 @@
+// ========================================
+// VORTEK BLOG - DATABASE SCHEMA
+// ========================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ========================================
+// ADMIN - Usuários administrativos
+// ========================================
+model Admin {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  articles  Article[]
+  sessions  Session[]
+}
+
+// ========================================
+// ARTICLE - Artigos do blog
+// ========================================
+model Article {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  excerpt     String?
+  coverImage  String?
+  category    String
+  tags        String?  // JSON array de tags
+  published   Boolean  @default(false)
+  featured    Boolean  @default(false)
+  readTime    Int      @default(5) // em minutos
+
+  // Blocos de conteúdo como JSON
+  // Estrutura: [{ id, type, content, order }]
+  blocks      String   @default("[]") // JSON array
+
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+
+  // Estatísticas
+  viewCount   Int      @default(0)
+  likeCount   Int      @default(0)
+  saveCount   Int      @default(0)
+
+  authorId    String
+  author      Admin    @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ========================================
+// SESSION - Sessões de autenticação
+// ========================================
+model Session {
+  id        String   @id @default(cuid())
+  adminId   String
+  admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
