@@ -4,13 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000 2>&1 | tee dev.log",
-    "build": "prisma generate && next build && rm -rf .next/cache .next/server/cache .next/static/chunks/*.map 2>/dev/null || true",
+    "build": "prisma generate && next-on-pages",
+    "build:next": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint .",
     "db:push": "prisma db push",
     "db:generate": "prisma generate"
   },
   "dependencies": {
+    "@cloudflare/next-on-pages": "^1.13.16",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",

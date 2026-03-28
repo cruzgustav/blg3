@@ -8,15 +8,6 @@ const nextConfig: NextConfig = {
 
   // Desabilitar geração de source maps para reduzir tamanho
   productionBrowserSourceMaps: false,
-
-  // Configuração do webpack para reduzir tamanho
-  webpack: (config, { isServer }) => {
-    if (isServer) {
-      // Desabilitar cache do webpack no servidor
-      config.cache = false;
-    }
-    return config;
-  },
 };
 
 export default nextConfig;

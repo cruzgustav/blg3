@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
 
+export const runtime = 'edge'
+
 export async function GET() {
   try {
     const cookieStore = await cookies()

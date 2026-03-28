@@ -1,6 +1,9 @@
 import { db } from '@/lib/db'
 import { HomeClient } from './home-client'
 
+// Edge Runtime para Cloudflare Pages
+export const runtime = 'edge'
+
 // Forçar renderização dinâmica (não prerenderizar durante build)
 export const dynamic = 'force-dynamic'
 

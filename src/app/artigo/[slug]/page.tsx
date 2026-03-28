@@ -2,6 +2,9 @@ import { db } from '@/lib/db'
 import { notFound } from 'next/navigation'
 import { ArticlePageClient } from './article-client'
 
+// Edge Runtime para Cloudflare Pages
+export const runtime = 'edge'
+
 // Forçar renderização dinâmica
 export const dynamic = 'force-dynamic'
 
