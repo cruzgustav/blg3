@@ -44,12 +44,17 @@ export interface HeadingBlock extends BlockBase {
   }
 }
 
+export type ImageSize = 'small' | 'medium' | 'large' | 'full'
+export type ImageAlign = 'left' | 'center' | 'right'
+
 export interface ImageBlock extends BlockBase {
   type: 'image'
   content: {
     url: string
     alt: string
     caption?: string
+    size?: ImageSize      // default: 'full'
+    align?: ImageAlign    // default: 'center'
   }
 }
 

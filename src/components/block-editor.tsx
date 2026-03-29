@@ -1,6 +1,6 @@
 'use client'
 
-import { Block } from '@/lib/types'
+import { Block, ImageSize, ImageAlign } from '@/lib/types'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -25,6 +25,8 @@ export function BlockEditor({ block, onUpdate }: BlockEditorProps) {
       return <HeadingBlockEditor block={block} onUpdate={onUpdate} />
     case 'image':
       return <ImageBlockEditor block={block} onUpdate={onUpdate} />
+    case 'video':
+      return <VideoBlockEditor block={block} onUpdate={onUpdate} />
     case 'code':
       return <CodeBlockEditor block={block} onUpdate={onUpdate} />
     case 'quiz':
@@ -33,6 +35,8 @@ export function BlockEditor({ block, onUpdate }: BlockEditorProps) {
       return <CtaBlockEditor block={block} onUpdate={onUpdate} />
     case 'audio':
       return <AudioBlockEditor block={block} onUpdate={onUpdate} />
+    case 'quote':
+      return <QuoteBlockEditor block={block} onUpdate={onUpdate} />
     default:
       return <div>Tipo de bloco desconhecido</div>
   }
@@ -80,12 +84,23 @@ function HeadingBlockEditor({ block, onUpdate }: BlockEditorProps) {
   )
 }
 
-// Image Block Editor
+// Image Block Editor - ATUALIZADO com size e align
 function ImageBlockEditor({ block, onUpdate }: BlockEditorProps) {
-  const content = block.content as { url: string; alt: string; caption: string }
+  const content = block.content as { 
+    url: string
+    alt: string
+    caption: string
+    size?: ImageSize
+    align?: ImageAlign
+  }
+
+  // Defaults para retrocompatibilidade
+  const size = content.size || 'full'
+  const align = content.align || 'center'
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
+      {/* URL e Alt */}
       <Input
         value={content.url}
         onChange={(e) => onUpdate({ ...content, url: e.target.value })}
@@ -96,11 +111,116 @@ function ImageBlockEditor({ block, onUpdate }: BlockEditorProps) {
         onChange={(e) => onUpdate({ ...content, alt: e.target.value })}
         placeholder="Texto alternativo"
       />
+      
+      {/* Tamanho e Alinhamento */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">Tamanho</label>
+          <Select
+            value={size}
+            onValueChange={(value) => onUpdate({ ...content, size: value as ImageSize })}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="small">Pequeno (25%)</SelectItem>
+              <SelectItem value="medium">Médio (50%)</SelectItem>
+              <SelectItem value="large">Grande (75%)</SelectItem>
+              <SelectItem value="full">Largura total</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground">Alinhamento</label>
+          <Select
+            value={align}
+            onValueChange={(value) => onUpdate({ ...content, align: value as ImageAlign })}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="left">Esquerda</SelectItem>
+              <SelectItem value="center">Centro</SelectItem>
+              <SelectItem value="right">Direita</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Dica sobre mesclagem */}
+      {(size === 'small' || size === 'medium') && align !== 'center' && (
+        <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+          💡 Imagem será mesclada com o texto (float {align === 'left' ? 'à esquerda' : 'à direita'})
+        </p>
+      )}
+      
+      {/* Legenda */}
       <Input
         value={content.caption}
         onChange={(e) => onUpdate({ ...content, caption: e.target.value })}
         placeholder="Legenda (opcional)"
       />
+    </div>
+  )
+}
+
+// Video Block Editor - NOVO
+function VideoBlockEditor({ block, onUpdate }: BlockEditorProps) {
+  const content = block.content as { url: string; title: string; duration: string }
+
+  return (
+    <div className="space-y-2">
+      <Input
+        value={content.url}
+        onChange={(e) => onUpdate({ ...content, url: e.target.value })}
+        placeholder="URL do vídeo (YouTube, Vimeo ou URL direta)"
+      />
+      <div className="grid grid-cols-2 gap-2">
+        <Input
+          value={content.title}
+          onChange={(e) => onUpdate({ ...content, title: e.target.value })}
+          placeholder="Título do vídeo"
+        />
+        <Input
+          value={content.duration}
+          onChange={(e) => onUpdate({ ...content, duration: e.target.value })}
+          placeholder="Duração (ex: 12:45)"
+        />
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Suporta: YouTube, Vimeo ou URLs diretas de vídeo (mp4, webm)
+      </p>
+    </div>
+  )
+}
+
+// Quote Block Editor - NOVO
+function QuoteBlockEditor({ block, onUpdate }: BlockEditorProps) {
+  const content = block.content as { text: string; author: string; source: string }
+
+  return (
+    <div className="space-y-2">
+      <textarea
+        value={content.text}
+        onChange={(e) => onUpdate({ ...content, text: e.target.value })}
+        placeholder="Texto da citação..."
+        className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      />
+      <div className="grid grid-cols-2 gap-2">
+        <Input
+          value={content.author}
+          onChange={(e) => onUpdate({ ...content, author: e.target.value })}
+          placeholder="Autor (opcional)"
+        />
+        <Input
+          value={content.source}
+          onChange={(e) => onUpdate({ ...content, source: e.target.value })}
+          placeholder="Fonte (opcional)"
+        />
+      </div>
     </div>
   )
 }

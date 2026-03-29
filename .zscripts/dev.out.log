@@ -5688,3 +5688,24 @@ Error: Next.js inferred your workspace root, but it may not be correct.
 
     at ignore-listed frames
 [?25h
+==========================================
+[2026-03-29 14:31:36] Starting: bun install
+==========================================
+[BUN] Installing dependencies...
+[0.12ms] ".env"
+bun install v1.3.10 (30e609e0)
+
+Checked 840 installs across 969 packages (no changes) [41.00ms]
+==========================================
+[2026-03-29 14:31:36] Completed: bun install
+[LOG] Step: bun install | Duration: 0s
+==========================================
+
+==========================================
+[2026-03-29 14:31:36] Starting: bun run db:push
+==========================================
+[BUN] Setting up database...
+$ prisma db push
+Prisma schema loaded from prisma/schema.prisma.
+Error: The datasource.url property is required in your Prisma config file when using prisma db push.
+error: script "db:push" exited with code 1

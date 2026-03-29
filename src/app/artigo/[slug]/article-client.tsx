@@ -78,16 +78,23 @@ const MobileTableOfContents = memo(function MobileTableOfContents({
 
   const handleItemClick = useCallback((e: React.MouseEvent, id: string) => {
     e.stopPropagation()
-    onItemClick(id)
     setIsOpen(false)
+    // Delay para permitir que o collapse complete antes do scroll
+    setTimeout(() => {
+      onItemClick(id)
+    }, 250)
   }, [onItemClick])
+
+  const handleToggle = useCallback(() => {
+    setIsOpen(prev => !prev)
+  }, [])
 
   if (items.length === 0) return null
 
   return (
     <div className="mb-6 sm:mb-8 rounded-lg border border-border bg-card/50 lg:hidden overflow-hidden">
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
         className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors"
       >
         <span className="flex items-center gap-2 text-sm font-medium text-foreground">
@@ -140,12 +147,16 @@ const DesktopTableOfContents = memo(function DesktopTableOfContents({
     onItemClick(id)
   }, [onItemClick])
 
+  const handleToggle = useCallback(() => {
+    setIsOpen(!isOpen)
+  }, [isOpen])
+
   if (items.length === 0) return null
 
   return (
     <nav className="rounded-lg border border-border bg-card/50 overflow-hidden">
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
         className="w-full flex items-center justify-between p-3 hover:bg-muted/50 transition-colors"
       >
         <span className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
