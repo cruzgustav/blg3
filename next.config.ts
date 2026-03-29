@@ -5,9 +5,14 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
-
-  // Desabilitar geração de source maps para reduzir tamanho
   productionBrowserSourceMaps: false,
+  
+  // Expor variáveis de ambiente para o Edge Runtime
+  env: {
+    TURSO_DATABASE_URL: process.env.TURSO_DATABASE_URL,
+    DATABASE_URL: process.env.DATABASE_URL,
+    TURSO_AUTH_TOKEN: process.env.TURSO_AUTH_TOKEN,
+  },
 };
 
 export default nextConfig;

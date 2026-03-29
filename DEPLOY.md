@@ -4,10 +4,6 @@
 
 O projeto está configurado para usar **Turso** como banco de dados.
 
-### Credenciais já configuradas:
-- **URL**: `libsql://vortek-blog-cruzgustav.aws-us-east-1.turso.io`
-- **Token**: Configure no Cloudflare Pages Dashboard
-
 ---
 
 ## 🚀 Deploy no Cloudflare Pages
@@ -20,8 +16,8 @@ O projeto está configurado para usar **Turso** como banco de dados.
 
 ### 2. Configurar Build
 
-- **Build command**: `bun run build`
-- **Build output**: `.next`
+- **Build command**: `bun run pages:build`
+- **Build output**: `.vercel/output/static`
 
 ### 3. Variáveis de Ambiente
 
@@ -29,11 +25,22 @@ No Cloudflare Pages Dashboard, configure:
 
 | Variável | Valor |
 |----------|-------|
-| `DATABASE_URL` | `libsql://vortek-blog-cruzgustav.aws-us-east-1.turso.io` |
+| `TURSO_DATABASE_URL` | `libsql://vortek-blog-cruzgustav.aws-us-east-1.turso.io` |
 | `TURSO_AUTH_TOKEN` | (seu token do Turso) |
 | `NODE_ENV` | `production` |
 
-### 4. Deploy
+### 4. ⚠️ IMPORTANTE: Configurar Compatibility Flags
+
+**OBRIGATÓRIO** para que o site funcione:
+
+1. No Cloudflare Pages Dashboard, vá em seu projeto
+2. Acesse **Settings** → **Tempo de execução** (Runtime)
+3. Encontre **"Sinalizadores de compatibilidade"** (Compatibility flags)
+4. Adicione `nodejs_compat`
+5. Salve as alterações
+6. Faça um novo deploy
+
+### 5. Deploy
 
 Clique em **"Save and Deploy"**
 
@@ -59,7 +66,8 @@ bun run dev
 | Comando | Descrição |
 |---------|-----------|
 | `bun run dev` | Servidor de desenvolvimento |
-| `bun run build` | Build para produção |
+| `bun run build` | Build padrão (Next.js) |
+| `bun run pages:build` | Build para Cloudflare Pages |
 | `bun run db:generate` | Gerar Prisma Client |
 
 ---
@@ -71,6 +79,28 @@ bun run dev
 - **Senha**: `vortek123`
 
 ⚠️ **Altere a senha após o primeiro login!**
+
+---
+
+## 🐛 Solução de Problemas
+
+### Erro: "nodejs_compat compatibility flag not set"
+
+1. Acesse o Cloudflare Dashboard
+2. Vá em **Workers & Pages** → Seu Projeto
+3. **Settings** → **Tempo de execução** → **Sinalizadores de compatibilidade**
+4. Adicione `nodejs_compat`
+5. Faça um novo deploy
+
+### Erro: "No Pages Function"
+
+Isso significa que o site foi deployado como estático. Certifique-se de:
+- Usar `bun run pages:build` como build command
+- Ter `export const runtime = 'edge'` nas rotas dinâmicas
+
+### Erro: "XMLHttpRequest is not defined"
+
+Este erro foi corrigido usando `@prisma/adapter-libsql/web` que é compatível com Edge Runtime.
 
 ---
 
