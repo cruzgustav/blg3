@@ -76,16 +76,22 @@ const MobileTableOfContents = memo(function MobileTableOfContents({
 }) {
   const [isOpen, setIsOpen] = useState(false)
 
+  // Função separada para o clique no item
   const handleItemClick = useCallback((e: React.MouseEvent, id: string) => {
+    e.preventDefault()
     e.stopPropagation()
+    
+    // Fechar o collapse primeiro
     setIsOpen(false)
-    // Delay para permitir que o collapse complete antes do scroll
-    setTimeout(() => {
-      onItemClick(id)
-    }, 250)
+    
+    // Executar o scroll imediatamente (não esperar animação)
+    // O scroll é mais importante que a animação
+    onItemClick(id)
   }, [onItemClick])
 
-  const handleToggle = useCallback(() => {
+  // Função para toggle do collapse (não afeta os itens)
+  const handleToggle = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
     setIsOpen(prev => !prev)
   }, [])
 
@@ -420,7 +426,7 @@ export function ArticlePageClient({ article, relatedArticles }: ArticlePageClien
           </aside>
 
           {/* Coluna Direita: Artigo */}
-          <article className="prose-vortek contain-layout">
+          <article className="prose-vortek">
             {blocks.map((block) => (
               <BlockRenderer key={block.id} block={block} />
             ))}
@@ -428,7 +434,7 @@ export function ArticlePageClient({ article, relatedArticles }: ArticlePageClien
         </div>
 
         {/* Mobile: Artigo */}
-        <article className="prose-vortek max-w-3xl mx-auto contain-layout lg:hidden">
+        <article className="prose-vortek max-w-3xl mx-auto lg:hidden">
           {blocks.map((block) => (
             <BlockRenderer key={block.id} block={block} />
           ))}

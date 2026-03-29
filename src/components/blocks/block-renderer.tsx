@@ -1,8 +1,8 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { memo } from 'react'
-import { Block } from '@/lib/types'
+import { memo, useMemo } from 'react'
+import { Block, ImageBlock } from '@/lib/types'
 
 // Lazy loading dos blocos pesados (imagem, vídeo, áudio, quiz)
 // Esses blocos só são carregados quando necessários
@@ -65,9 +65,19 @@ interface BlockRendererProps {
   block: Block
 }
 
+// Verificar se a imagem usa float
+function isFloatingImage(block: Block): boolean {
+  if (block.type !== 'image') return false
+  const content = block.content as ImageBlock['content']
+  const size = content.size || 'full'
+  const align = content.align || 'center'
+  return (size === 'small' || size === 'medium') && align !== 'center'
+}
+
 export const BlockRenderer = memo(function BlockRenderer({ block }: BlockRendererProps) {
-  // Wrapper com CSS containment para isolar cada bloco e melhorar performance
-  // 'contain: content' isola layout e style, evitando reflow em cascata
+  // Verificar se é uma imagem com float
+  const useFloat = useMemo(() => isFloatingImage(block), [block])
+  
   const renderBlock = () => {
     switch (block.type) {
       case 'heading':
@@ -93,6 +103,12 @@ export const BlockRenderer = memo(function BlockRenderer({ block }: BlockRendere
     }
   }
 
+  // Para imagens com float, não usar contain para permitir que o texto flua ao lado
+  if (useFloat) {
+    return <>{renderBlock()}</>
+  }
+
+  // Para outros blocos, manter contain para performance
   return (
     <div style={{ contain: 'content' }}>
       {renderBlock()}

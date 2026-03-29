@@ -361,8 +361,8 @@ export function ArticleForm({ mode, initialData }: ArticleFormProps) {
   const [readTime, setReadTime] = useState(initialData?.readTime || 5)
   const [coverImage, setCoverImage] = useState(initialData?.coverImage || '')
   
-  // Preview state
-  const [showPreview, setShowPreview] = useState(false)
+  // Preview state - começa com preview aberto
+  const [showPreview, setShowPreview] = useState(true)
   const [viewport, setViewport] = useState<ViewportSize>('desktop')
   const [activeTab, setActiveTab] = useState<ActiveTab>('editor')
 
@@ -990,78 +990,81 @@ export function ArticleForm({ mode, initialData }: ArticleFormProps) {
         )}
 
         {/* Center: Block Editor */}
-        <div className={`flex-1 min-w-0 ${activeTab !== 'editor' ? 'hidden lg:block' : ''}`}>
-          <div className="p-4 lg:p-6">
-            {/* Add Block Buttons */}
-            <div className="flex flex-wrap gap-2 mb-6 pb-4 border-b border-border">
-              {blockTypes.map(({ type, icon: Icon, label, color }) => (
-                <Button
-                  key={type}
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 h-auto py-1.5"
-                  onClick={() => handleAddBlock(type)}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span className="hidden sm:inline">{label}</span>
-                </Button>
-              ))}
-            </div>
-
-            {/* Blocks with DnD */}
-            {blocks.length === 0 ? (
-              <div className="text-center py-16 text-muted-foreground border-2 border-dashed border-border rounded-lg">
-                <p className="font-medium text-lg">Nenhum bloco adicionado</p>
-                <p className="text-sm mt-2">Use os botões acima para adicionar conteúdo</p>
+        <div className={`flex-1 min-w-0 ${activeTab !== 'editor' ? 'hidden lg:block' : ''} h-[calc(100vh-73px)] flex flex-col`}>
+          {/* Área de blocos rolável */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-4 lg:p-6">
+              {/* Add Block Buttons */}
+              <div className="flex flex-wrap gap-2 mb-6 pb-4 border-b border-border sticky top-0 bg-background z-10 -mt-4 lg:-mt-6 pt-4 lg:pt-6 -mx-4 lg:-mx-6 px-4 lg:px-6">
+                {blockTypes.map(({ type, icon: Icon, label, color }) => (
+                  <Button
+                    key={type}
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 h-auto py-1.5"
+                    onClick={() => handleAddBlock(type)}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span className="hidden sm:inline">{label}</span>
+                  </Button>
+                ))}
               </div>
-            ) : (
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={blocks.map(b => b.id)}
-                  strategy={verticalListSortingStrategy}
+
+              {/* Blocks with DnD */}
+              {blocks.length === 0 ? (
+                <div className="text-center py-16 text-muted-foreground border-2 border-dashed border-border rounded-lg">
+                  <p className="font-medium text-lg">Nenhum bloco adicionado</p>
+                  <p className="text-sm mt-2">Use os botões acima para adicionar conteúdo</p>
+                </div>
+              ) : (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
                 >
-                  <div className="space-y-3">
-                    {blocks.map((block, index) => (
-                      <SortableBlock
-                        key={block.id}
-                        block={block}
-                        index={index}
-                        totalBlocks={blocks.length}
-                        onUpdate={(content) => handleUpdateBlock(block.id, content)}
-                        onRemove={() => handleRemoveBlock(block.id)}
-                        onDuplicate={() => handleDuplicateBlock(block.id)}
-                        onMove={(direction) => handleMoveBlock(block.id, direction)}
-                      />
+                  <SortableContext
+                    items={blocks.map(b => b.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="space-y-3">
+                      {blocks.map((block, index) => (
+                        <SortableBlock
+                          key={block.id}
+                          block={block}
+                          index={index}
+                          totalBlocks={blocks.length}
+                          onUpdate={(content) => handleUpdateBlock(block.id, content)}
+                          onRemove={() => handleRemoveBlock(block.id)}
+                          onDuplicate={() => handleDuplicateBlock(block.id)}
+                          onMove={(direction) => handleMoveBlock(block.id, direction)}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+              )}
+
+              {/* Quick Add at Bottom */}
+              {blocks.length > 0 && (
+                <div className="pt-4 mt-6 border-t border-border">
+                  <p className="text-xs text-muted-foreground mb-2">Adicionar mais:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {blockTypes.slice(0, 5).map(({ type, icon: Icon, label }) => (
+                      <Button
+                        key={type}
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 text-xs gap-1"
+                        onClick={() => handleAddBlock(type)}
+                      >
+                        <Icon className="h-3.5 w-3.5" />
+                        {label}
+                      </Button>
                     ))}
                   </div>
-                </SortableContext>
-              </DndContext>
-            )}
-
-            {/* Quick Add at Bottom */}
-            {blocks.length > 0 && (
-              <div className="pt-4 mt-6 border-t border-border">
-                <p className="text-xs text-muted-foreground mb-2">Adicionar mais:</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {blockTypes.slice(0, 5).map(({ type, icon: Icon, label }) => (
-                    <Button
-                      key={type}
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 text-xs gap-1"
-                      onClick={() => handleAddBlock(type)}
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                      {label}
-                    </Button>
-                  ))}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
