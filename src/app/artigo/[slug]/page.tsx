@@ -1,4 +1,4 @@
-import { db } from '@/lib/db'
+import { db, queries } from '@/lib/db'
 import { notFound } from 'next/navigation'
 import { ArticlePageClient } from './article-client'
 
@@ -16,65 +16,59 @@ export default async function ArticlePage({
 }) {
   const { slug } = await params
 
-  const article = await db.article.findUnique({
-    where: { slug, published: true },
-    include: {
-      author: {
-        select: {
-          name: true,
-          email: true,
-          avatar: true,
-        },
-      },
-    },
-  })
+  const article = await queries.getArticleBySlug(slug)
 
-  if (!article) {
+  if (!article || !article.published) {
     notFound()
   }
 
   // Incrementar contador de visualizações (não aguardar)
-  db.article.update({
-    where: { id: article.id },
-    data: { viewCount: { increment: 1 } },
+  db.execute({
+    sql: 'UPDATE Article SET viewCount = viewCount + 1 WHERE id = ?',
+    args: [article.id]
   }).catch(() => {})
 
+  // Buscar autor
+  const authorResult = await db.execute({
+    sql: 'SELECT name, email, avatar FROM Admin WHERE id = ?',
+    args: [article.authorId]
+  })
+  const author = authorResult.rows[0] || { name: 'Admin', email: '', avatar: null }
+
   // Parse e ordenar blocos no servidor
-  const parsedBlocks = JSON.parse(article.blocks)
+  const parsedBlocks = article.blocks
   const sortedBlocks = parsedBlocks.sort((a: { order: number }, b: { order: number }) => a.order - b.order)
 
   // Formatar dados para o cliente
   const formattedArticle = {
     ...article,
-    tags: article.tags ? JSON.parse(article.tags) : [],
+    author: {
+      name: author.name as string,
+      email: author.email as string,
+      avatar: author.avatar as string | null,
+    },
     blocks: sortedBlocks,
-    publishedAt: article.publishedAt?.toISOString() || null,
+    publishedAt: article.publishedAt || null,
   }
 
   // Buscar artigos relacionados
-  const relatedArticles = await db.article.findMany({
-    where: {
-      published: true,
-      category: article.category,
-      NOT: { id: article.id },
-    },
-    take: 3,
-    orderBy: { publishedAt: 'desc' },
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      excerpt: true,
-      coverImage: true,
-      category: true,
-      readTime: true,
-      publishedAt: true,
-    },
+  const relatedResult = await db.execute({
+    sql: `SELECT id, slug, title, excerpt, coverImage, category, readTime, publishedAt 
+          FROM Article 
+          WHERE published = 1 AND category = ? AND id != ? 
+          ORDER BY publishedAt DESC LIMIT 3`,
+    args: [article.category, article.id]
   })
-
-  const formattedRelated = relatedArticles.map(a => ({
-    ...a,
-    publishedAt: a.publishedAt?.toISOString() || null,
+  
+  const formattedRelated = relatedResult.rows.map(row => ({
+    id: row.id as string,
+    slug: row.slug as string,
+    title: row.title as string,
+    excerpt: row.excerpt as string | null,
+    coverImage: row.coverImage as string | null,
+    category: row.category as string,
+    readTime: row.readTime as number,
+    publishedAt: row.publishedAt as string | null,
   }))
 
   return (

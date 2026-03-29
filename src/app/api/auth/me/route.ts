@@ -13,33 +13,41 @@ export async function GET() {
       return NextResponse.json({ admin: null })
     }
 
-    const session = await db.session.findUnique({
-      where: { token },
+    const sessionResult = await db.execute({
+      sql: 'SELECT * FROM Session WHERE token = ?',
+      args: [token]
     })
 
-    if (!session || session.expiresAt < new Date()) {
-      await db.session.deleteMany({
-        where: { token },
+    const session = sessionResult.rows[0]
+
+    if (!session || new Date(session.expiresAt as string) < new Date()) {
+      await db.execute({
+        sql: 'DELETE FROM Session WHERE token = ?',
+        args: [token]
       })
       cookieStore.delete('admin_token')
       return NextResponse.json({ admin: null })
     }
 
-    const admin = await db.admin.findUnique({
-      where: { id: session.adminId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        avatar: true,
-      },
+    const adminResult = await db.execute({
+      sql: 'SELECT id, email, name, avatar FROM Admin WHERE id = ?',
+      args: [session.adminId]
     })
+
+    const admin = adminResult.rows[0]
 
     if (!admin) {
       return NextResponse.json({ admin: null })
     }
 
-    return NextResponse.json({ admin })
+    return NextResponse.json({ 
+      admin: {
+        id: admin.id as string,
+        email: admin.email as string,
+        name: admin.name as string,
+        avatar: admin.avatar as string | null,
+      }
+    })
   } catch (error) {
     console.error('Erro ao verificar sessão:', error)
     return NextResponse.json({ admin: null })

@@ -23,11 +23,14 @@ export async function POST(request: Request) {
       )
     }
 
-    const admin = await db.admin.findUnique({
-      where: { email },
+    const result = await db.execute({
+      sql: 'SELECT * FROM Admin WHERE email = ?',
+      args: [email]
     })
 
+    const admin = result.rows[0]
     const hashedPassword = await hashPassword(password)
+    
     if (!admin || admin.password !== hashedPassword) {
       return NextResponse.json(
         { error: 'Credenciais inválidas' },
@@ -36,14 +39,17 @@ export async function POST(request: Request) {
     }
 
     const token = crypto.randomUUID()
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
 
-    await db.session.create({
-      data: {
-        adminId: admin.id,
+    await db.execute({
+      sql: 'INSERT INTO Session (id, adminId, token, expiresAt, createdAt) VALUES (?, ?, ?, ?, ?)',
+      args: [
+        crypto.randomUUID(),
+        admin.id,
         token,
         expiresAt,
-      },
+        new Date().toISOString()
+      ]
     })
 
     const cookieStore = await cookies()
@@ -51,15 +57,15 @@ export async function POST(request: Request) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      expires: expiresAt,
+      expires: new Date(expiresAt),
     })
 
     return NextResponse.json({
       admin: {
-        id: admin.id,
-        email: admin.email,
-        name: admin.name,
-        avatar: admin.avatar,
+        id: admin.id as string,
+        email: admin.email as string,
+        name: admin.name as string,
+        avatar: admin.avatar as string | null,
       },
     })
   } catch (error) {
