@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, getAdminByEmail } from '@/lib/db'
 import { cookies } from 'next/headers'
 
 export const runtime = 'edge'
@@ -23,12 +23,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const result = await db.execute({
-      sql: 'SELECT * FROM Admin WHERE email = ?',
-      args: [email]
-    })
-
-    const admin = result.rows[0]
+    const admin = await getAdminByEmail(email)
     const hashedPassword = await hashPassword(password)
     
     if (!admin || admin.password !== hashedPassword) {
@@ -41,16 +36,10 @@ export async function POST(request: Request) {
     const token = crypto.randomUUID()
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
 
-    await db.execute({
-      sql: 'INSERT INTO Session (id, adminId, token, expiresAt, createdAt) VALUES (?, ?, ?, ?, ?)',
-      args: [
-        crypto.randomUUID(),
-        admin.id,
-        token,
-        expiresAt,
-        new Date().toISOString()
-      ]
-    })
+    await db.execute(
+      'INSERT INTO Session (id, adminId, token, expiresAt, createdAt) VALUES (?, ?, ?, ?, ?)',
+      [crypto.randomUUID(), admin.id, token, expiresAt, new Date().toISOString()]
+    )
 
     const cookieStore = await cookies()
     cookieStore.set('admin_token', token, {
@@ -62,10 +51,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       admin: {
-        id: admin.id as string,
-        email: admin.email as string,
-        name: admin.name as string,
-        avatar: admin.avatar as string | null,
+        id: admin.id,
+        email: admin.email,
+        name: admin.name,
+        avatar: admin.avatar,
       },
     })
   } catch (error) {

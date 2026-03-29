@@ -13,28 +13,21 @@ export async function GET() {
       return NextResponse.json({ admin: null })
     }
 
-    const sessionResult = await db.execute({
-      sql: 'SELECT * FROM Session WHERE token = ?',
-      args: [token]
-    })
-
-    const session = sessionResult.rows[0]
+    const sessionResult = await db.execute('SELECT * FROM Session WHERE token = ?', [token])
+    const session = sessionResult[0]
 
     if (!session || new Date(session.expiresAt as string) < new Date()) {
-      await db.execute({
-        sql: 'DELETE FROM Session WHERE token = ?',
-        args: [token]
-      })
+      await db.execute('DELETE FROM Session WHERE token = ?', [token])
       cookieStore.delete('admin_token')
       return NextResponse.json({ admin: null })
     }
 
-    const adminResult = await db.execute({
-      sql: 'SELECT id, email, name, avatar FROM Admin WHERE id = ?',
-      args: [session.adminId]
-    })
+    const adminResult = await db.execute(
+      'SELECT id, email, name, avatar FROM Admin WHERE id = ?',
+      [session.adminId]
+    )
 
-    const admin = adminResult.rows[0]
+    const admin = adminResult[0]
 
     if (!admin) {
       return NextResponse.json({ admin: null })
@@ -42,10 +35,10 @@ export async function GET() {
 
     return NextResponse.json({ 
       admin: {
-        id: admin.id as string,
-        email: admin.email as string,
-        name: admin.name as string,
-        avatar: admin.avatar as string | null,
+        id: admin.id,
+        email: admin.email,
+        name: admin.name,
+        avatar: admin.avatar,
       }
     })
   } catch (error) {

@@ -1,181 +1,213 @@
 // ========================================
 // VORTEK BLOG - DATABASE CLIENT (TURSO)
 // ========================================
-// Usando @libsql/client/http diretamente (usa fetch API)
-// Compatível com Cloudflare Workers / Edge Runtime
-
-import { createClient, type Client } from '@libsql/client/http'
-
-const globalForDb = globalThis as unknown as {
-  db: Client | undefined
-}
+// Implementação própria usando fetch nativo
+// 100% compatível com Cloudflare Workers / Edge Runtime
 
 // Configuração do Turso
-// Prioriza TURSO_DATABASE_URL, depois DATABASE_URL se for libsql válida
-function getTursoUrl(): string {
-  const tursoUrl = process.env.TURSO_DATABASE_URL
-  if (tursoUrl && tursoUrl.startsWith('libsql://')) {
-    return tursoUrl
+function getTursoConfig() {
+  const url = process.env.TURSO_DATABASE_URL || process.env.DATABASE_URL || 'libsql://vortek-blog-cruzgustav.aws-us-east-1.turso.io'
+  const token = process.env.TURSO_AUTH_TOKEN || ''
+  
+  // Converter libsql:// para https://
+  let httpUrl = url
+  if (httpUrl.startsWith('libsql://')) {
+    httpUrl = httpUrl.replace('libsql://', 'https://')
   }
   
-  const dbUrl = process.env.DATABASE_URL
-  if (dbUrl && dbUrl.startsWith('libsql://')) {
-    return dbUrl
+  return { url: httpUrl, token }
+}
+
+// Cliente Turso usando API REST simples
+class TursoClient {
+  private url: string
+  private token: string
+
+  constructor(url: string, token: string) {
+    this.url = url
+    this.token = token
+  }
+
+  async execute(sql: string, params: any[] = []): Promise<any[]> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+    
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`
+    }
+
+    // API REST do Turso - formato correto
+    const body = {
+      statements: [
+        {
+          q: sql,
+          params: params,
+        },
+      ],
+    }
+
+    const response = await fetch(this.url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    })
+
+    if (!response.ok) {
+      const text = await response.text()
+      throw new Error(`Turso error: ${response.status} - ${text}`)
+    }
+
+    const results = await response.json()
+    
+    // Extrair rows do resultado
+    const result = results.results?.[0]
+    if (result?.error) {
+      throw new Error(`SQL error: ${result.error.message || result.error}`)
+    }
+    
+    const rows = result?.rows || []
+    const columns = result?.columns || []
+    
+    return rows.map((row: any[]) => {
+      const obj: Record<string, any> = {}
+      row.forEach((val, i) => {
+        if (columns[i]) {
+          obj[columns[i]] = val
+        }
+      })
+      return obj
+    })
+  }
+}
+
+// Criar cliente singleton
+const config = getTursoConfig()
+const client = new TursoClient(config.url, config.token)
+
+// Exportar cliente
+export const db = client
+
+// Helper para parsear JSON com segurança
+function safeJsonParse(val: any): any {
+  if (val === null || val === undefined) return []
+  if (Array.isArray(val)) return val
+  if (typeof val === 'string') {
+    try {
+      return JSON.parse(val)
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
+// Funções helper
+export async function getArticles(options?: { category?: string; published?: boolean }) {
+  let sql = 'SELECT * FROM Article'
+  const conditions: string[] = []
+  const params: any[] = []
+  
+  if (options?.published !== undefined) {
+    conditions.push('published = ?')
+    params.push(options.published ? 1 : 0)
+  }
+  if (options?.category) {
+    conditions.push('category = ?')
+    params.push(options.category)
   }
   
-  // Fallback para URL padrão (apenas para desenvolvimento)
-  return 'libsql://vortek-blog-cruzgustav.aws-us-east-1.turso.io'
-}
-
-const TURSO_URL = getTursoUrl()
-const TURSO_TOKEN = process.env.TURSO_AUTH_TOKEN || ''
-
-function createDbClient(): Client {
-  // Converter URL libsql:// para https://
-  let url = TURSO_URL
-  if (url.startsWith('libsql://')) {
-    url = url.replace('libsql://', 'https://')
+  if (conditions.length > 0) {
+    sql += ' WHERE ' + conditions.join(' AND ')
   }
+  sql += ' ORDER BY createdAt DESC'
+  
+  const rows = await client.execute(sql, params)
+  return rows.map((row: any) => ({
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    excerpt: row.excerpt,
+    coverImage: row.coverImage,
+    category: row.category,
+    tags: safeJsonParse(row.tags),
+    published: !!row.published,
+    featured: !!row.featured,
+    readTime: row.readTime,
+    viewCount: row.viewCount,
+    likeCount: row.likeCount,
+    blocks: safeJsonParse(row.blocks),
+    authorId: row.authorId,
+    publishedAt: row.publishedAt,
+    createdAt: row.createdAt,
+  }))
+}
 
-  // Verificar se a URL é válida
-  if (!url.startsWith('https://') && !url.startsWith('http://')) {
-    throw new Error(`Invalid DATABASE_URL: ${TURSO_URL}. Must start with libsql://, https://, or http://`)
+export async function getArticleBySlug(slug: string) {
+  const rows = await client.execute('SELECT * FROM Article WHERE slug = ?', [slug])
+  if (rows.length === 0) return null
+  const row = rows[0]
+  return {
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    excerpt: row.excerpt,
+    coverImage: row.coverImage,
+    category: row.category,
+    tags: safeJsonParse(row.tags),
+    published: !!row.published,
+    featured: !!row.featured,
+    readTime: row.readTime,
+    viewCount: row.viewCount,
+    likeCount: row.likeCount,
+    blocks: safeJsonParse(row.blocks),
+    authorId: row.authorId,
+    publishedAt: row.publishedAt,
+    createdAt: row.createdAt,
   }
-
-  // Criar cliente HTTP (usa fetch nativo - compatível com Edge Runtime)
-  return createClient({
-    url: url,
-    authToken: TURSO_TOKEN || undefined,
-  })
 }
 
-// Cliente libsql para queries diretas
-export const db = globalForDb.db ?? createDbClient()
-
-if (process.env.NODE_ENV !== 'production') {
-  globalForDb.db = db
+export async function getFeaturedArticle() {
+  const rows = await client.execute(
+    'SELECT * FROM Article WHERE published = 1 AND featured = 1 ORDER BY publishedAt DESC LIMIT 1',
+    []
+  )
+  if (rows.length === 0) return null
+  const row = rows[0]
+  return {
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    excerpt: row.excerpt,
+    coverImage: row.coverImage,
+    category: row.category,
+    tags: safeJsonParse(row.tags),
+    published: !!row.published,
+    featured: !!row.featured,
+    readTime: row.readTime,
+    viewCount: row.viewCount,
+    likeCount: row.likeCount,
+    blocks: safeJsonParse(row.blocks),
+    authorId: row.authorId,
+    publishedAt: row.publishedAt,
+    createdAt: row.createdAt,
+  }
 }
 
-// Helper para queries comuns
-export const queries = {
-  // Artigos
-  async getArticles(options?: { category?: string; published?: boolean }) {
-    let sql = 'SELECT * FROM Article'
-    const conditions: string[] = []
-    const params: any[] = []
-    
-    if (options?.published !== undefined) {
-      conditions.push('published = ?')
-      params.push(options.published ? 1 : 0)
-    }
-    if (options?.category) {
-      conditions.push('category = ?')
-      params.push(options.category)
-    }
-    
-    if (conditions.length > 0) {
-      sql += ' WHERE ' + conditions.join(' AND ')
-    }
-    sql += ' ORDER BY createdAt DESC'
-    
-    const result = await db.execute({ sql, args: params })
-    return result.rows.map(row => ({
-      id: row.id as string,
-      slug: row.slug as string,
-      title: row.title as string,
-      excerpt: row.excerpt as string | null,
-      coverImage: row.coverImage as string | null,
-      category: row.category as string,
-      tags: row.tags ? JSON.parse(row.tags as string) : [],
-      published: !!row.published,
-      featured: !!row.featured,
-      readTime: row.readTime as number,
-      viewCount: row.viewCount as number,
-      likeCount: row.likeCount as number,
-      blocks: row.blocks ? JSON.parse(row.blocks as string) : [],
-      authorId: row.authorId as string,
-      publishedAt: row.publishedAt as string | null,
-      createdAt: row.createdAt as string,
-    }))
-  },
+export async function getAdminByEmail(email: string) {
+  const rows = await client.execute('SELECT * FROM Admin WHERE email = ?', [email])
+  if (rows.length === 0) return null
+  const row = rows[0]
+  return {
+    id: row.id,
+    email: row.email,
+    password: row.password,
+    name: row.name,
+    avatar: row.avatar,
+  }
+}
 
-  async getArticleBySlug(slug: string) {
-    const result = await db.execute({
-      sql: 'SELECT * FROM Article WHERE slug = ?',
-      args: [slug]
-    })
-    if (result.rows.length === 0) return null
-    const row = result.rows[0]
-    return {
-      id: row.id as string,
-      slug: row.slug as string,
-      title: row.title as string,
-      excerpt: row.excerpt as string | null,
-      coverImage: row.coverImage as string | null,
-      category: row.category as string,
-      tags: row.tags ? JSON.parse(row.tags as string) : [],
-      published: !!row.published,
-      featured: !!row.featured,
-      readTime: row.readTime as number,
-      viewCount: row.viewCount as number,
-      likeCount: row.likeCount as number,
-      blocks: row.blocks ? JSON.parse(row.blocks as string) : [],
-      authorId: row.authorId as string,
-      publishedAt: row.publishedAt as string | null,
-      createdAt: row.createdAt as string,
-    }
-  },
-
-  async getFeaturedArticle() {
-    const result = await db.execute({
-      sql: 'SELECT * FROM Article WHERE published = 1 AND featured = 1 ORDER BY publishedAt DESC LIMIT 1',
-      args: []
-    })
-    if (result.rows.length === 0) return null
-    const row = result.rows[0]
-    return {
-      id: row.id as string,
-      slug: row.slug as string,
-      title: row.title as string,
-      excerpt: row.excerpt as string | null,
-      coverImage: row.coverImage as string | null,
-      category: row.category as string,
-      tags: row.tags ? JSON.parse(row.tags as string) : [],
-      published: !!row.published,
-      featured: !!row.featured,
-      readTime: row.readTime as number,
-      viewCount: row.viewCount as number,
-      likeCount: row.likeCount as number,
-      blocks: row.blocks ? JSON.parse(row.blocks as string) : [],
-      authorId: row.authorId as string,
-      publishedAt: row.publishedAt as string | null,
-      createdAt: row.createdAt as string,
-    }
-  },
-
-  // Admin
-  async getAdminByEmail(email: string) {
-    const result = await db.execute({
-      sql: 'SELECT * FROM Admin WHERE email = ?',
-      args: [email]
-    })
-    if (result.rows.length === 0) return null
-    const row = result.rows[0]
-    return {
-      id: row.id as string,
-      email: row.email as string,
-      password: row.password as string,
-      name: row.name as string,
-      avatar: row.avatar as string | null,
-    }
-  },
-
-  // Categorias
-  async getCategories() {
-    const result = await db.execute({
-      sql: 'SELECT DISTINCT category FROM Article WHERE published = 1',
-      args: []
-    })
-    return result.rows.map(row => row.category as string)
-  },
+export async function getCategories() {
+  const rows = await client.execute('SELECT DISTINCT category FROM Article WHERE published = 1', [])
+  return rows.map((row: any) => row.category)
 }

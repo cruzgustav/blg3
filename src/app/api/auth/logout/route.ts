@@ -10,10 +10,7 @@ export async function POST() {
     const token = cookieStore.get('admin_token')?.value
 
     if (token) {
-      await db.execute({
-        sql: 'DELETE FROM Session WHERE token = ?',
-        args: [token]
-      })
+      await db.execute('DELETE FROM Session WHERE token = ?', [token])
     }
 
     cookieStore.delete('admin_token')

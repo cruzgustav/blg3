@@ -4,23 +4,19 @@ import { cookies } from 'next/headers'
 
 export const runtime = 'edge'
 
-async function checkAuth() {
+async function checkAuth(): Promise<string | null> {
   const cookieStore = await cookies()
   const token = cookieStore.get('admin_token')?.value
 
   if (!token) return null
 
-  const sessionResult = await db.execute({
-    sql: 'SELECT * FROM Session WHERE token = ?',
-    args: [token]
-  })
-
-  const session = sessionResult.rows[0]
+  const sessionResult = await db.execute('SELECT * FROM Session WHERE token = ?', [token])
+  const session = sessionResult[0]
   if (!session || new Date(session.expiresAt as string) < new Date()) {
     return null
   }
 
-  return session
+  return session.adminId as string
 }
 
 export async function GET(
@@ -28,47 +24,41 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await checkAuth()
-    if (!session) {
+    const adminId = await checkAuth()
+    if (!adminId) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
     }
 
     const { id } = await params
 
-    const result = await db.execute({
-      sql: 'SELECT * FROM Article WHERE id = ?',
-      args: [id]
-    })
+    const result = await db.execute('SELECT * FROM Article WHERE id = ?', [id])
 
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       return NextResponse.json({ error: 'Artigo não encontrado' }, { status: 404 })
     }
 
-    const row = result.rows[0]
+    const row = result[0]
 
     // Buscar autor
-    const authorResult = await db.execute({
-      sql: 'SELECT name, email FROM Admin WHERE id = ?',
-      args: [row.authorId]
-    })
-    const author = authorResult.rows[0]
+    const authorResult = await db.execute('SELECT name, email FROM Admin WHERE id = ?', [row.authorId])
+    const author = authorResult[0]
 
     return NextResponse.json({
       article: {
-        id: row.id as string,
-        slug: row.slug as string,
-        title: row.title as string,
-        excerpt: row.excerpt as string | null,
-        coverImage: row.coverImage as string | null,
-        category: row.category as string,
+        id: row.id,
+        slug: row.slug,
+        title: row.title,
+        excerpt: row.excerpt,
+        coverImage: row.coverImage,
+        category: row.category,
         tags: row.tags ? JSON.parse(row.tags as string) : [],
         published: !!row.published,
         featured: !!row.featured,
-        readTime: row.readTime as number,
+        readTime: row.readTime,
         blocks: row.blocks ? JSON.parse(row.blocks as string) : [],
-        authorId: row.authorId as string,
+        authorId: row.authorId,
         author: author ? { name: author.name, email: author.email } : null,
-        publishedAt: row.publishedAt as string | null,
+        publishedAt: row.publishedAt || null,
       },
     })
   } catch (error) {
@@ -85,8 +75,8 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await checkAuth()
-    if (!session) {
+    const adminId = await checkAuth()
+    if (!adminId) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
     }
 
@@ -96,12 +86,9 @@ export async function PUT(
 
     // Verificar se slug já existe em outro artigo
     if (slug) {
-      const existing = await db.execute({
-        sql: 'SELECT id FROM Article WHERE slug = ? AND id != ?',
-        args: [slug, id]
-      })
+      const existing = await db.execute('SELECT id FROM Article WHERE slug = ? AND id != ?', [slug, id])
 
-      if (existing.rows.length > 0) {
+      if (existing.length > 0) {
         return NextResponse.json(
           { error: 'Já existe outro artigo com este slug' },
           { status: 400 }
@@ -136,25 +123,9 @@ export async function PUT(
 
     values.push(id)
 
-    await db.execute({
-      sql: `UPDATE Article SET ${updates.join(', ')} WHERE id = ?`,
-      args: values
-    })
+    await db.execute(`UPDATE Article SET ${updates.join(', ')} WHERE id = ?`, values)
 
-    const result = await db.execute({
-      sql: 'SELECT * FROM Article WHERE id = ?',
-      args: [id]
-    })
-
-    const article = result.rows[0]
-
-    return NextResponse.json({ 
-      article: {
-        id: article.id as string,
-        slug: article.slug as string,
-        title: article.title as string,
-      }
-    })
+    return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Erro ao atualizar artigo:', error)
     return NextResponse.json(
@@ -169,17 +140,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await checkAuth()
-    if (!session) {
+    const adminId = await checkAuth()
+    if (!adminId) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
     }
 
     const { id } = await params
 
-    await db.execute({
-      sql: 'DELETE FROM Article WHERE id = ?',
-      args: [id]
-    })
+    await db.execute('DELETE FROM Article WHERE id = ?', [id])
 
     return NextResponse.json({ success: true })
   } catch (error) {
