@@ -59,8 +59,14 @@ export async function POST(request: Request) {
     })
   } catch (error) {
     console.error('Erro no login:', error)
+    // Retornar mais detalhes do erro para debug
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido'
     return NextResponse.json(
-      { error: 'Erro interno do servidor' },
+      { 
+        error: 'Erro interno do servidor', 
+        details: errorMessage,
+        stack: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : undefined) : undefined
+      },
       { status: 500 }
     )
   }

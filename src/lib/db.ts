@@ -4,15 +4,40 @@
 // Implementação própria usando fetch nativo
 // 100% compatível com Cloudflare Workers / Edge Runtime
 
-// Configuração do Turso
+// Configuração do Turso - suporta múltiplas variações de nomes
 function getTursoConfig() {
-  const url = process.env.TURSO_DATABASE_URL || process.env.DATABASE_URL || 'libsql://vortek-blog-cruzgustav.aws-us-east-1.turso.io'
-  const token = process.env.TURSO_AUTH_TOKEN || ''
+  // Tenta várias variações de nomes de variáveis de ambiente
+  const url = 
+    process.env.TURSO_DATABASE_URL || 
+    process.env.TURSO_DB_URL ||
+    process.env.DATABASE_URL ||
+    process.env.DB_URL ||
+    process.env.TURSO_URL ||
+    ''
+  
+  const token = 
+    process.env.TURSO_AUTH_TOKEN ||
+    process.env.TURSO_TOKEN ||
+    process.env.TURSO_AUTH ||
+    process.env.AUTH_TOKEN ||
+    process.env.DATABASE_AUTH_TOKEN ||
+    ''
+  
+  // Log para debug (sem expor o token completo)
+  console.log('[DB] Config - URL encontrada:', url ? 'SIM' : 'NÃO')
+  console.log('[DB] Config - Token encontrado:', token ? 'SIM' : 'NÃO')
+  console.log('[DB] Config - URL (primeiros 30 chars):', url?.substring(0, 30) || 'VAZIO')
   
   // Converter libsql:// para https://
   let httpUrl = url
   if (httpUrl.startsWith('libsql://')) {
     httpUrl = httpUrl.replace('libsql://', 'https://')
+  }
+  
+  // Se não tiver URL, usar um placeholder que vai falhar graciosamente
+  if (!httpUrl) {
+    console.error('[DB] ERRO: Nenhuma URL de banco de dados configurada!')
+    console.error('[DB] Variáveis disponíveis:', Object.keys(process.env).filter(k => k.includes('DATABASE') || k.includes('TURSO') || k.includes('DB') || k.includes('AUTH')))
   }
   
   return { url: httpUrl, token }
@@ -22,13 +47,21 @@ function getTursoConfig() {
 class TursoClient {
   private url: string
   private token: string
+  private initialized: boolean = false
 
   constructor(url: string, token: string) {
     this.url = url
     this.token = token
+    console.log('[DB] TursoClient criado')
   }
 
   async execute(sql: string, params: any[] = []): Promise<any[]> {
+    // Verificar se tem configuração válida
+    if (!this.url) {
+      console.error('[DB] URL não configurada - retornando array vazio')
+      return []
+    }
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     }
@@ -47,37 +80,49 @@ class TursoClient {
       ],
     }
 
-    const response = await fetch(this.url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-    })
-
-    if (!response.ok) {
-      const text = await response.text()
-      throw new Error(`Turso error: ${response.status} - ${text}`)
+    if (!this.initialized) {
+      console.log('[DB] Primeira execução - URL:', this.url.substring(0, 50) + '...')
+      this.initialized = true
     }
 
-    const results = await response.json()
-    
-    // Extrair rows do resultado
-    const result = results.results?.[0]
-    if (result?.error) {
-      throw new Error(`SQL error: ${result.error.message || result.error}`)
-    }
-    
-    const rows = result?.rows || []
-    const columns = result?.columns || []
-    
-    return rows.map((row: any[]) => {
-      const obj: Record<string, any> = {}
-      row.forEach((val, i) => {
-        if (columns[i]) {
-          obj[columns[i]] = val
-        }
+    try {
+      const response = await fetch(this.url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
       })
-      return obj
-    })
+
+      if (!response.ok) {
+        const text = await response.text()
+        console.error('[DB] Erro HTTP:', response.status, text.substring(0, 200))
+        throw new Error(`Turso error: ${response.status} - ${text}`)
+      }
+
+      const results = await response.json()
+      
+      // Extrair rows do resultado
+      const result = results.results?.[0]
+      if (result?.error) {
+        console.error('[DB] Erro SQL:', result.error)
+        throw new Error(`SQL error: ${result.error.message || result.error}`)
+      }
+      
+      const rows = result?.rows || []
+      const columns = result?.columns || []
+      
+      return rows.map((row: any[]) => {
+        const obj: Record<string, any> = {}
+        row.forEach((val, i) => {
+          if (columns[i]) {
+            obj[columns[i]] = val
+          }
+        })
+        return obj
+      })
+    } catch (error) {
+      console.error('[DB] Erro na execução:', error)
+      throw error
+    }
   }
 }
 

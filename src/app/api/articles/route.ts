@@ -45,8 +45,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ articles: formattedArticles })
   } catch (error) {
     console.error('Erro ao buscar artigos:', error)
+    // Retornar mais detalhes do erro para debug
+    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido'
     return NextResponse.json(
-      { error: 'Erro ao buscar artigos' },
+      { 
+        error: 'Erro ao buscar artigos', 
+        details: errorMessage,
+        stack: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : undefined) : undefined
+      },
       { status: 500 }
     )
   }
