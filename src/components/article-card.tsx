@@ -9,7 +9,9 @@ import Link from 'next/link'
 import { useState, useRef, useEffect, memo } from 'react'
 
 interface ArticleCardProps {
-  article: ArticleWithStats
+  article: ArticleWithStats & {
+    author: { name: string; avatar: string | null }
+  }
   onLike?: (id: string) => void
   onSave?: (id: string) => void
   isLiked?: boolean
@@ -103,6 +105,22 @@ export const ArticleCard = memo(function ArticleCard({
             {article.excerpt}
           </p>
         )}
+
+        {/* Author */}
+        <div className="mt-3 flex items-center gap-2">
+          {article.author.avatar ? (
+            <img 
+              src={article.author.avatar} 
+              alt={article.author.name}
+              className="h-5 w-5 rounded-full object-cover"
+            />
+          ) : (
+            <div className="flex h-5 w-5 items-center justify-center rounded-full bg-accent text-accent-foreground font-bold text-[10px]">
+              {article.author.name.charAt(0).toUpperCase()}
+            </div>
+          )}
+          <span className="text-xs text-muted-foreground">{article.author.name}</span>
+        </div>
 
         {/* Footer - Reorganizado */}
         <div className="mt-auto pt-3 flex items-center justify-between border-t border-border">

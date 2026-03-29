@@ -19,7 +19,7 @@ interface FeaturedArticleProps {
     viewCount: number
     likeCount: number
     publishedAt: string | null
-    author: { name: string }
+    author: { name: string; avatar: string | null }
   }
 }
 
@@ -102,9 +102,22 @@ export const FeaturedArticle = memo(function FeaturedArticle({ article }: Featur
           </p>
 
           {/* Author */}
-          <p className="mt-2 sm:mt-4 text-xs sm:text-sm text-muted-foreground">
-            Por <span className="font-medium text-foreground">{article.author.name}</span>
-          </p>
+          <div className="mt-2 sm:mt-4 flex items-center gap-2">
+            {article.author.avatar ? (
+              <img 
+                src={article.author.avatar} 
+                alt={article.author.name}
+                className="h-6 w-6 rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent text-accent-foreground font-bold text-xs">
+                {article.author.name.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <span className="text-xs sm:text-sm text-muted-foreground">
+              Por <span className="font-medium text-foreground">{article.author.name}</span>
+            </span>
+          </div>
 
           {/* Meta Info + Button em linha */}
           <div className="mt-4 sm:mt-6 flex items-center justify-between gap-4">

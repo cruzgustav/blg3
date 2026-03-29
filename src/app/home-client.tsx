@@ -23,9 +23,9 @@ interface HomeClientProps {
     viewCount: number
     likeCount: number
     publishedAt: string | null
-    author: { name: string }
+    author: { name: string; avatar: string | null }
   } | null
-  articles: ArticleWithStats[]
+  articles: (ArticleWithStats & { author: { name: string; avatar: string | null } })[]
   categories: string[]
 }
 

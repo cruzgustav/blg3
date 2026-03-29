@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   ExternalLink,
+  Users,
 } from 'lucide-react'
 
 interface Admin {
@@ -72,6 +73,7 @@ export default function AdminLayout({
   const navItems = [
     { href: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
     { href: '/admin/novo', icon: Plus, label: 'Novo Artigo' },
+    { href: '/admin/autores', icon: Users, label: 'Autores' },
   ]
 
   return (
@@ -114,9 +116,17 @@ export default function AdminLayout({
           {/* User Info & Logout */}
           <div className="p-4 border-t border-border space-y-2">
             <div className="flex items-center gap-3 px-3 py-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-accent-foreground font-bold text-sm">
-                {admin.name.charAt(0).toUpperCase()}
-              </div>
+              {admin.avatar ? (
+                <img 
+                  src={admin.avatar} 
+                  alt={admin.name}
+                  className="h-8 w-8 rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-accent-foreground font-bold text-sm">
+                  {admin.name.charAt(0).toUpperCase()}
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{admin.name}</p>
                 <p className="text-xs text-muted-foreground truncate">{admin.email}</p>

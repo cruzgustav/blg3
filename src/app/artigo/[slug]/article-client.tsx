@@ -25,6 +25,7 @@ import {
   Check
 } from 'lucide-react'
 import { BlockRenderer } from '@/components/blocks/block-renderer'
+import { BlockProcessor } from '@/components/blocks/block-processor'
 import { useReaderInteractions } from '@/hooks/use-reader-interactions'
 import { ReadingProgress } from '@/components/reading-progress'
 import { useTableOfContents } from '@/components/table-of-contents'
@@ -380,9 +381,17 @@ export function ArticlePageClient({ article, relatedArticles }: ArticlePageClien
 
           {/* Author */}
           <div className="mt-4 flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-accent-foreground font-bold text-xs">
-              {article.author.name.charAt(0).toUpperCase()}
-            </div>
+            {article.author.avatar ? (
+              <img 
+                src={article.author.avatar} 
+                alt={article.author.name}
+                className="h-8 w-8 rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-accent-foreground font-bold text-xs">
+                {article.author.name.charAt(0).toUpperCase()}
+              </div>
+            )}
             <span className="text-sm font-medium text-foreground">{article.author.name}</span>
           </div>
         </header>
@@ -427,17 +436,13 @@ export function ArticlePageClient({ article, relatedArticles }: ArticlePageClien
 
           {/* Coluna Direita: Artigo */}
           <article className="prose-vortek">
-            {blocks.map((block) => (
-              <BlockRenderer key={block.id} block={block} />
-            ))}
+            <BlockProcessor blocks={blocks} />
           </article>
         </div>
 
         {/* Mobile: Artigo */}
         <article className="prose-vortek max-w-3xl mx-auto lg:hidden">
-          {blocks.map((block) => (
-            <BlockRenderer key={block.id} block={block} />
-          ))}
+          <BlockProcessor blocks={blocks} />
         </article>
 
         {/* Tags */}

@@ -26,29 +26,29 @@ export default async function HomePage() {
     console.log('[PAGE] Categorias:', categories.length)
 
     // Buscar autor para cada artigo
-    const authorMap = new Map<string, string>()
+    const authorMap = new Map<string, { name: string; avatar: string | null }>()
     if (articles.length > 0) {
       const authorIds = [...new Set(articles.map(a => a.authorId))]
       const placeholders = authorIds.map(() => '?').join(',')
       const authorsResult = await db.execute(
-        `SELECT id, name FROM Admin WHERE id IN (${placeholders})`,
+        `SELECT id, name, avatar FROM Admin WHERE id IN (${placeholders})`,
         authorIds
       )
       authorsResult.forEach((row: any) => {
-        authorMap.set(row.id, row.name)
+        authorMap.set(row.id, { name: row.name, avatar: row.avatar })
       })
     }
 
     // Formatar dados
     const formattedFeatured = featuredArticle ? {
       ...featuredArticle,
-      author: { name: authorMap.get(featuredArticle.authorId) || 'Admin' },
+      author: authorMap.get(featuredArticle.authorId) || { name: 'Admin', avatar: null },
       publishedAt: featuredArticle.publishedAt || null,
     } : null
 
     const formattedArticles = articles.map(article => ({
       ...article,
-      author: { name: authorMap.get(article.authorId) || 'Admin' },
+      author: authorMap.get(article.authorId) || { name: 'Admin', avatar: null },
       saveCount: 0,
       publishedAt: article.publishedAt || null,
     }))

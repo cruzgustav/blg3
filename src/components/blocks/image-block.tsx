@@ -66,62 +66,27 @@ export const ImageBlockRenderer = memo(function ImageBlockRenderer({ block }: Pr
     return () => observer.disconnect()
   }, [])
 
-  // Se for tamanho pequeno/médio e alinhado à esquerda/direita, usar float
-  const useFloat = (size === 'small' || size === 'medium') && align !== 'center'
-
-  if (useFloat) {
-    // Layout com float - imagem mesclada com texto
-    return (
-      <figure 
-        ref={ref}
-        className={`my-4 ${size === 'small' ? 'w-[30%]' : 'w-[45%]'} ${align === 'left' ? 'float-left mr-4' : 'float-right ml-4'} clear-both`}
-      >
-        <div className="relative overflow-hidden rounded-lg border border-border/50 bg-muted shadow-sm">
-          {!hasLoaded && <ImageSkeleton />}
-          {isVisible && (
-            <img
-              src={url}
-              alt={alt}
-              loading="lazy"
-              decoding="async"
-              onLoad={() => setHasLoaded(true)}
-              className={`w-full object-cover transition-opacity duration-300 ${
-                hasLoaded ? 'opacity-100' : 'opacity-0'
-              }`}
-            />
-          )}
-        </div>
-        {caption && (
-          <figcaption className="mt-2 text-xs text-muted-foreground italic text-center">
-            {caption}
-          </figcaption>
-        )}
-      </figure>
-    )
-  }
-
   // Layout normal - imagem em bloco separado
+  // O float agora é tratado pelo BlockProcessor
   return (
-    <figure className="my-8 sm:my-10" ref={ref}>
-      <div className={`relative ${sizeClasses[size]} ${alignClasses[align]} overflow-hidden rounded-xl border border-border/50 bg-muted shadow-sm`}>
-        <div className={aspectClasses[size]}>
-          {!hasLoaded && <ImageSkeleton />}
-          {isVisible && (
-            <img
-              src={url}
-              alt={alt}
-              loading="lazy"
-              decoding="async"
-              onLoad={() => setHasLoaded(true)}
-              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
-                hasLoaded ? 'opacity-100' : 'opacity-0'
-              }`}
-            />
-          )}
-        </div>
+    <figure className="my-4 sm:my-6" ref={ref}>
+      <div className={`relative overflow-hidden rounded-lg border border-border/50 bg-muted shadow-sm`}>
+        {!hasLoaded && <ImageSkeleton />}
+        {isVisible && (
+          <img
+            src={url}
+            alt={alt}
+            loading="lazy"
+            decoding="async"
+            onLoad={() => setHasLoaded(true)}
+            className={`w-full object-cover transition-opacity duration-300 ${
+              hasLoaded ? 'opacity-100' : 'opacity-0'
+            }`}
+          />
+        )}
       </div>
       {caption && (
-        <figcaption className={`mt-3 text-sm text-muted-foreground italic ${alignClasses[align]}`} style={{ maxWidth: sizeClasses[size] === 'max-w-full' ? '100%' : undefined }}>
+        <figcaption className="mt-2 text-xs text-muted-foreground italic text-center">
           {caption}
         </figcaption>
       )}
