@@ -5,6 +5,15 @@ import { nanoid } from 'nanoid'
 // Edge Runtime para Cloudflare Pages
 export const runtime = 'edge'
 
+// Função de hash compatível com o login (SHA-256)
+async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(password)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+}
+
 // GET - Listar todos os admins
 export async function GET() {
   try {
@@ -40,9 +49,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Este email já está cadastrado' }, { status: 400 })
     }
 
-    // Hash simples para edge runtime (usando base64 como alternativa ao bcrypt)
-    // Em produção, use um serviço de autenticação adequado
-    const hashedPassword = btoa(password + 'vortek-salt')
+    // Hash SHA-256 (mesmo método usado no login)
+    const hashedPassword = await hashPassword(password)
 
     // Criar admin
     const id = nanoid()

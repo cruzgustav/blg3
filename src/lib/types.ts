@@ -21,7 +21,9 @@ export interface ArticleWithStats {
 }
 
 // Bloco de conteúdo
-export type BlockType = 'text' | 'heading' | 'image' | 'video' | 'code' | 'quiz' | 'cta' | 'audio' | 'quote'
+export type BlockType = 'text' | 'heading' | 'image' | 'video' | 'code' | 'quiz' | 'cta' | 'audio' | 'quote' | 'callout' | 'checklist' | 'carousel' | 'poll' | 'tabs'
+
+export type CalloutType = 'info' | 'tip' | 'warning' | 'danger'
 
 export interface BlockBase {
   id: string
@@ -112,7 +114,70 @@ export interface QuoteBlock extends BlockBase {
   }
 }
 
-export type Block = TextBlock | HeadingBlock | ImageBlock | VideoBlock | CodeBlock | QuizBlock | CtaBlock | AudioBlock | QuoteBlock
+export interface CalloutBlock extends BlockBase {
+  type: 'callout'
+  content: {
+    calloutType: CalloutType
+    title?: string
+    text: string
+  }
+}
+
+export interface ChecklistItem {
+  id: string
+  text: string
+  checked: boolean
+}
+
+export interface ChecklistBlock extends BlockBase {
+  type: 'checklist'
+  content: {
+    items: ChecklistItem[]
+  }
+}
+
+export interface CarouselImage {
+  id: string
+  url: string
+  alt: string
+  caption?: string
+}
+
+export interface CarouselBlock extends BlockBase {
+  type: 'carousel'
+  content: {
+    images: CarouselImage[]
+  }
+}
+
+export interface PollOption {
+  id: string
+  text: string
+  votes: number
+}
+
+export interface PollBlock extends BlockBase {
+  type: 'poll'
+  content: {
+    question: string
+    options: PollOption[]
+  }
+}
+
+export interface TabItem {
+  id: string
+  title: string
+  content: string
+}
+
+export interface TabsBlock extends BlockBase {
+  type: 'tabs'
+  content: {
+    tabs: TabItem[]
+  }
+}
+
+export type Block = TextBlock | HeadingBlock | ImageBlock | VideoBlock | CodeBlock | QuizBlock | CtaBlock | AudioBlock | QuoteBlock | CalloutBlock | ChecklistBlock | CarouselBlock | PollBlock | TabsBlock
 
 // Artigo completo com blocos
 export interface ArticleFull extends Omit<ArticleWithStats, 'tags'> {

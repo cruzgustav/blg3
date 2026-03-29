@@ -60,6 +60,11 @@ import { TextBlockRenderer } from './text-block'
 import { CodeBlockRenderer } from './code-block'
 import { CtaBlockRenderer } from './cta-block'
 import { QuoteBlockRenderer } from './quote-block'
+import { CalloutBlockRenderer } from './callout-block'
+import { ChecklistBlockRenderer } from './checklist-block'
+import { CarouselBlockRenderer } from './carousel-block'
+import { PollBlockRenderer } from './poll-block'
+import { TabsBlockRenderer } from './tabs-block'
 
 interface BlockRendererProps {
   block: Block
@@ -98,6 +103,16 @@ export const BlockRenderer = memo(function BlockRenderer({ block }: BlockRendere
         return <AudioBlockRenderer block={block} />
       case 'quote':
         return <QuoteBlockRenderer block={block} />
+      case 'callout':
+        return <CalloutBlockRenderer block={block} />
+      case 'checklist':
+        return <ChecklistBlockRenderer block={block} />
+      case 'carousel':
+        return <CarouselBlockRenderer block={block} />
+      case 'poll':
+        return <PollBlockRenderer block={block} />
+      case 'tabs':
+        return <TabsBlockRenderer block={block} />
       default:
         return null
     }

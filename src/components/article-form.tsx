@@ -38,6 +38,10 @@ import {
   Loader2,
   Check,
   AlertCircle,
+  CheckSquare,
+  Images,
+  BarChart3,
+  LayoutList,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -86,6 +90,11 @@ const blockTypes: { type: BlockType; icon: React.ElementType; label: string; col
   { type: 'video', icon: Video, label: 'Vídeo', color: 'bg-red-500/10 text-red-500 border-red-500/20' },
   { type: 'code', icon: Code, label: 'Código', color: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' },
   { type: 'quote', icon: Quote, label: 'Citação', color: 'bg-pink-500/10 text-pink-500 border-pink-500/20' },
+  { type: 'callout', icon: AlertCircle, label: 'Callout', color: 'bg-sky-500/10 text-sky-500 border-sky-500/20' },
+  { type: 'checklist', icon: CheckSquare, label: 'Checklist', color: 'bg-teal-500/10 text-teal-500 border-teal-500/20' },
+  { type: 'carousel', icon: Images, label: 'Carrossel', color: 'bg-violet-500/10 text-violet-500 border-violet-500/20' },
+  { type: 'poll', icon: BarChart3, label: 'Enquete', color: 'bg-rose-500/10 text-rose-500 border-rose-500/20' },
+  { type: 'tabs', icon: LayoutList, label: 'Tabs', color: 'bg-amber-500/10 text-amber-500 border-amber-500/20' },
   { type: 'quiz', icon: HelpCircle, label: 'Quiz', color: 'bg-orange-500/10 text-orange-500 border-orange-500/20' },
   { type: 'cta', icon: Megaphone, label: 'CTA', color: 'bg-cyan-500/10 text-cyan-500 border-cyan-500/20' },
   { type: 'audio', icon: Music, label: 'Áudio', color: 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20' },
@@ -142,6 +151,20 @@ function SortableBlock({ block, index, totalBlocks, onUpdate, onRemove, onDuplic
         return (content.code as string)?.slice(0, 30) || 'Código vazio'
       case 'quote':
         return (content.text as string)?.slice(0, 50) || 'Citação vazia'
+      case 'callout':
+        return (content.text as string)?.slice(0, 50) || 'Callout vazio'
+      case 'checklist':
+        const items = content.items as { text: string }[] | undefined
+        return items?.length ? `${items.length} itens` : 'Lista vazia'
+      case 'carousel':
+        const carouselImages = content.images as { url: string }[] | undefined
+        return carouselImages?.length ? `${carouselImages.length} imagens` : 'Carrossel vazio'
+      case 'poll':
+        const pollOptions = content.options as { text: string }[] | undefined
+        return pollOptions?.length ? `${pollOptions.length} opções` : 'Enquete vazia'
+      case 'tabs':
+        const tabsList = content.tabs as { title: string }[] | undefined
+        return tabsList?.length ? `${tabsList.length} abas` : 'Tabs vazio'
       case 'quiz':
         return (content.question as string)?.slice(0, 50) || 'Pergunta vazia'
       case 'cta':
@@ -506,6 +529,16 @@ export function ArticleForm({ mode, initialData }: ArticleFormProps) {
         return { language: 'typescript', code: '' }
       case 'quote':
         return { text: '', author: '', source: '' }
+      case 'callout':
+        return { calloutType: 'info', title: '', text: '' }
+      case 'checklist':
+        return { items: [{ id: `item-${Date.now()}`, text: '', checked: false }] }
+      case 'carousel':
+        return { images: [] }
+      case 'poll':
+        return { question: '', options: [{ id: `opt-${Date.now()}`, text: '', votes: 0 }] }
+      case 'tabs':
+        return { tabs: [{ id: `tab-${Date.now()}`, title: '', content: '' }] }
       case 'quiz':
         return { question: '', options: ['', '', '', ''], correctIndex: 0 }
       case 'cta':

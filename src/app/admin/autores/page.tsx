@@ -86,7 +86,7 @@ export default function AutoresPage() {
         : '/api/admin/admins'
       
       const body = editingId 
-        ? { name: formName, avatar: formAvatar || null }
+        ? { name: formName, avatar: formAvatar || null, ...(formPassword && { password: formPassword }) }
         : { name: formName, email: formEmail, password: formPassword, avatar: formAvatar || null }
 
       const res = await fetch(url, {
@@ -210,17 +210,17 @@ export default function AutoresPage() {
                 </div>
               </div>
 
-              {!editingId && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Senha *</label>
-                  <Input
-                    type="password"
-                    value={formPassword}
-                    onChange={(e) => setFormPassword(e.target.value)}
-                    placeholder="••••••••"
-                  />
-                </div>
-              )}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  {editingId ? 'Nova Senha (deixe em branco para manter)' : 'Senha *'}
+                </label>
+                <Input
+                  type="password"
+                  value={formPassword}
+                  onChange={(e) => setFormPassword(e.target.value)}
+                  placeholder={editingId ? "•••••••• (opcional)" : "••••••••"}
+                />
+              </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">URL do Avatar</label>
