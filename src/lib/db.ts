@@ -11,9 +11,23 @@ const globalForDb = globalThis as unknown as {
 }
 
 // Configuração do Turso
-const TURSO_URL = process.env.TURSO_DATABASE_URL || 
-  (process.env.DATABASE_URL?.startsWith('libsql://') ? process.env.DATABASE_URL : '') ||
-  'libsql://vortek-blog-cruzgustav.aws-us-east-1.turso.io'
+// Prioriza TURSO_DATABASE_URL, depois DATABASE_URL se for libsql válida
+function getTursoUrl(): string {
+  const tursoUrl = process.env.TURSO_DATABASE_URL
+  if (tursoUrl && tursoUrl.startsWith('libsql://')) {
+    return tursoUrl
+  }
+  
+  const dbUrl = process.env.DATABASE_URL
+  if (dbUrl && dbUrl.startsWith('libsql://')) {
+    return dbUrl
+  }
+  
+  // Fallback para URL padrão (apenas para desenvolvimento)
+  return 'libsql://vortek-blog-cruzgustav.aws-us-east-1.turso.io'
+}
+
+const TURSO_URL = getTursoUrl()
 const TURSO_TOKEN = process.env.TURSO_AUTH_TOKEN || ''
 
 function createDbClient(): Client {
