@@ -3,6 +3,7 @@
 // ========================================
 // Implementação própria usando fetch nativo
 // 100% compatível com Cloudflare Workers / Edge Runtime
+// Usa a API HTTP v2 do Turso (Hrana 2)
 
 // Configuração do Turso - suporta múltiplas variações de nomes
 function getTursoConfig() {
@@ -23,31 +24,34 @@ function getTursoConfig() {
     process.env.DATABASE_AUTH_TOKEN ||
     ''
   
-  // Log para debug (sem expor o token completo)
+  // Log para debug
   console.log('[DB] Config - URL encontrada:', url ? 'SIM' : 'NÃO')
   console.log('[DB] Config - Token encontrado:', token ? 'SIM' : 'NÃO')
-  console.log('[DB] Config - URL (primeiros 30 chars):', url?.substring(0, 30) || 'VAZIO')
   
-  // Converter libsql:// para https://
+  // Converter libsql:// para https:// e adicionar endpoint da API v2
   let httpUrl = url
   if (httpUrl.startsWith('libsql://')) {
     httpUrl = httpUrl.replace('libsql://', 'https://')
   }
   
-  // Se não tiver URL, usar um placeholder que vai falhar graciosamente
-  if (!httpUrl) {
+  // Adicionar endpoint /v2/pipeline
+  if (!httpUrl.includes('/v2/pipeline')) {
+    httpUrl = httpUrl.replace(/\/$/, '') + '/v2/pipeline'
+  }
+  
+  console.log('[DB] URL final:', httpUrl)
+  
+  if (!url) {
     console.error('[DB] ERRO: Nenhuma URL de banco de dados configurada!')
-    console.error('[DB] Variáveis disponíveis:', Object.keys(process.env).filter(k => k.includes('DATABASE') || k.includes('TURSO') || k.includes('DB') || k.includes('AUTH')))
   }
   
   return { url: httpUrl, token }
 }
 
-// Cliente Turso usando API REST simples
+// Cliente Turso usando API HTTP v2 (Hrana 2)
 class TursoClient {
   private url: string
   private token: string
-  private initialized: boolean = false
 
   constructor(url: string, token: string) {
     this.url = url
@@ -56,9 +60,8 @@ class TursoClient {
   }
 
   async execute(sql: string, params: any[] = []): Promise<any[]> {
-    // Verificar se tem configuração válida
     if (!this.url) {
-      console.error('[DB] URL não configurada - retornando array vazio')
+      console.error('[DB] URL não configurada')
       return []
     }
 
@@ -70,20 +73,21 @@ class TursoClient {
       headers['Authorization'] = `Bearer ${this.token}`
     }
 
-    // API REST do Turso - formato correto
+    // Formato da API v2 do Turso (Hrana 2)
     const body = {
-      statements: [
+      requests: [
         {
-          q: sql,
-          params: params,
+          type: 'execute',
+          stmt: {
+            sql: sql,
+            args: params.map(p => this.convertArg(p))
+          }
         },
-      ],
+        { type: 'close' }
+      ]
     }
 
-    if (!this.initialized) {
-      console.log('[DB] Primeira execução - URL:', this.url.substring(0, 50) + '...')
-      this.initialized = true
-    }
+    console.log('[DB] Executando SQL:', sql.substring(0, 50) + '...')
 
     try {
       const response = await fetch(this.url, {
@@ -92,37 +96,70 @@ class TursoClient {
         body: JSON.stringify(body),
       })
 
+      console.log('[DB] Status:', response.status)
+
       if (!response.ok) {
         const text = await response.text()
-        console.error('[DB] Erro HTTP:', response.status, text.substring(0, 200))
+        console.error('[DB] Erro HTTP:', response.status, text)
         throw new Error(`Turso error: ${response.status} - ${text}`)
       }
 
-      const results = await response.json()
+      const data = await response.json()
       
-      // Extrair rows do resultado
-      const result = results.results?.[0]
-      if (result?.error) {
+      // Processar resposta da API v2
+      const result = data.results?.[0]
+      
+      if (result?.type === 'error') {
         console.error('[DB] Erro SQL:', result.error)
-        throw new Error(`SQL error: ${result.error.message || result.error}`)
+        throw new Error(`SQL error: ${result.error?.message || result.error}`)
       }
       
-      const rows = result?.rows || []
-      const columns = result?.columns || []
-      
-      return rows.map((row: any[]) => {
-        const obj: Record<string, any> = {}
-        row.forEach((val, i) => {
-          if (columns[i]) {
-            obj[columns[i]] = val
-          }
+      if (result?.response?.type === 'execute') {
+        const cols = result.response.result?.cols || []
+        const rows = result.response.result?.rows || []
+        
+        console.log('[DB] Rows:', rows.length, 'Cols:', cols.length)
+        
+        // Converter rows para objetos
+        return rows.map((row: any[]) => {
+          const obj: Record<string, any> = {}
+          row.forEach((cell, i) => {
+            if (cols[i]) {
+              // Extrair valor da célula (formato {type: "xxx", value: ...})
+              const value = cell?.value
+              obj[cols[i].name] = value
+            }
+          })
+          return obj
         })
-        return obj
-      })
+      }
+      
+      return []
     } catch (error) {
-      console.error('[DB] Erro na execução:', error)
+      console.error('[DB] Erro:', error)
       throw error
     }
+  }
+
+  // Converter argumento para o formato da API v2
+  private convertArg(value: any): any {
+    if (value === null || value === undefined) {
+      return { type: 'null' }
+    }
+    if (typeof value === 'string') {
+      return { type: 'text', value }
+    }
+    if (typeof value === 'number') {
+      if (Number.isInteger(value)) {
+        return { type: 'integer', value: String(value) }
+      }
+      return { type: 'float', value: String(value) }
+    }
+    if (typeof value === 'boolean') {
+      return { type: 'integer', value: value ? '1' : '0' }
+    }
+    // Default: text
+    return { type: 'text', value: String(value) }
   }
 }
 

@@ -3,28 +3,28 @@ import { NextResponse } from 'next/server'
 export const runtime = 'edge'
 
 export async function GET() {
-  // Listar todas as variáveis de ambiente relacionadas ao banco (sem mostrar valores completos)
-  const envVars = Object.keys(process.env)
+  // Listar variáveis relacionadas ao banco
+  const dbRelatedVars = Object.keys(process.env)
     .filter(key => 
-      key.includes('DATABASE') || 
-      key.includes('TURSO') || 
-      key.includes('DB') || 
-      key.includes('AUTH') ||
-      key.includes('URL')
+      key.toLowerCase().includes('database') || 
+      key.toLowerCase().includes('turso') || 
+      key.toLowerCase().includes('db') || 
+      key.toLowerCase().includes('auth') ||
+      key.toLowerCase().includes('url')
     )
     .map(key => ({
       key,
       hasValue: !!process.env[key],
       length: process.env[key]?.length || 0,
-      preview: process.env[key]?.substring(0, 30) + '...' || null,
     }))
   
-  // Testar conexão com o banco
+  // Testar conexão com o banco usando API v2
   let dbTest = 'not_tested'
   let dbError = null
+  let dbUrlUsed = null
   
   try {
-    const url = 
+    const rawUrl = 
       process.env.TURSO_DATABASE_URL || 
       process.env.TURSO_DB_URL ||
       process.env.DATABASE_URL ||
@@ -40,41 +40,50 @@ export async function GET() {
       process.env.DATABASE_AUTH_TOKEN ||
       ''
     
-    if (!url) {
+    // Converter para API v2
+    let httpUrl = rawUrl
+    if (httpUrl.startsWith('libsql://')) {
+      httpUrl = httpUrl.replace('libsql://', 'https://')
+    }
+    if (!httpUrl.includes('/v2/pipeline')) {
+      httpUrl = httpUrl.replace(/\/$/, '') + '/v2/pipeline'
+    }
+    
+    dbUrlUsed = httpUrl
+    
+    if (!rawUrl) {
       dbTest = 'no_url'
-      dbError = 'URL do banco não configurada'
+      dbError = 'URL não configurada'
+    } else if (!token) {
+      dbTest = 'no_token'
+      dbError = 'Token não configurado'
     } else {
-      let httpUrl = url
-      if (httpUrl.startsWith('libsql://')) {
-        httpUrl = httpUrl.replace('libsql://', 'https://')
-      }
-      
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      }
-      
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      }
-      
+      // Formato API v2
       const response = await fetch(httpUrl, {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
         body: JSON.stringify({
-          statements: [{ q: 'SELECT 1 as test', params: [] }],
+          requests: [
+            { type: 'execute', stmt: { sql: 'SELECT 1 as test', args: [] } },
+            { type: 'close' }
+          ]
         }),
       })
       
       if (response.ok) {
-        const result = await response.json()
-        dbTest = 'connected'
-        if (result.results?.[0]?.error) {
-          dbTest = 'error'
-          dbError = result.results[0].error
+        const data = await response.json()
+        if (data.results?.[0]?.type === 'error') {
+          dbTest = 'sql_error'
+          dbError = data.results[0].error
+        } else {
+          dbTest = 'connected'
         }
       } else {
-        dbTest = 'failed'
-        dbError = `HTTP ${response.status}: ${await response.text()}`
+        dbTest = 'http_error'
+        dbError = `HTTP ${response.status}`
       }
     }
   } catch (e) {
@@ -83,9 +92,10 @@ export async function GET() {
   }
   
   return NextResponse.json({
-    envVars,
+    status: 'ok',
+    dbRelatedVars,
     dbTest,
     dbError,
-    nodeEnv: process.env.NODE_ENV,
+    dbUrlUsed,
   })
 }
