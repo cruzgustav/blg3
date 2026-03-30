@@ -1,12 +1,62 @@
 import { db, getArticleBySlug } from '@/lib/db'
 import { notFound } from 'next/navigation'
 import { ArticlePageClient } from './article-client'
+import { ArticleJsonLd, BreadcrumbJsonLd } from '@/components/seo/json-ld'
+import { Metadata } from 'next'
 
 // Edge Runtime para Cloudflare Pages
 export const runtime = 'edge'
 
 // Forçar renderização dinâmica
 export const dynamic = 'force-dynamic'
+
+// Gerar metadata para SEO
+export async function generateMetadata({ 
+  params 
+}: { 
+  params: Promise<{ slug: string }> 
+}): Promise<Metadata> {
+  const { slug } = await params
+  const article = await getArticleBySlug(slug)
+
+  if (!article || !article.published) {
+    return {
+      title: 'Artigo não encontrado',
+    }
+  }
+
+  const title = article.metaTitle || article.title
+  const description = article.metaDescription || article.excerpt || ''
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: 'article',
+      publishedTime: article.publishedAt || undefined,
+      authors: ['Vortek'],
+      images: article.coverImage ? [
+        {
+          url: article.coverImage,
+          width: 1200,
+          height: 630,
+          alt: article.title,
+        },
+      ] : [],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: article.coverImage ? [article.coverImage] : [],
+    },
+    alternates: {
+      canonical: `/artigo/${slug}`,
+    },
+  }
+}
 
 // SSR - Buscar artigo no servidor
 export default async function ArticlePage({
@@ -65,10 +115,23 @@ export default async function ArticlePage({
     publishedAt: row.publishedAt || null,
   }))
 
+  // URL completa para Schema.org
+  const articleUrl = `https://vortek.blog/artigo/${slug}`
+
   return (
-    <ArticlePageClient
-      article={formattedArticle}
-      relatedArticles={formattedRelated}
-    />
+    <>
+      {/* Schema.org JSON-LD */}
+      <ArticleJsonLd article={formattedArticle} url={articleUrl} />
+      <BreadcrumbJsonLd items={[
+        { name: 'Home', url: 'https://vortek.blog' },
+        { name: formattedArticle.category, url: `https://vortek.blog/?category=${formattedArticle.category}` },
+        { name: formattedArticle.title, url: articleUrl },
+      ]} />
+      
+      <ArticlePageClient
+        article={formattedArticle}
+        relatedArticles={formattedRelated}
+      />
+    </>
   )
 }
